@@ -8,7 +8,7 @@ import {
   type PageWindow,
 } from './frameUtils';
 
-const STOP_INTERVAL_MS = 60 * 1000;
+const STOP_INTERVAL_MS = 15 * 1000;
 
 interface MojWarningStopTarget {
   pageWindow: PageWindow;

@@ -1,7 +1,7 @@
 import type { Action } from './Action';
 import { findFirstRootWindow, findMainVideo, getPathTreeDocument, type PageWindow } from './frameUtils';
 
-const CHECK_INTERVAL_MS = 60 * 1000;
+const CHECK_INTERVAL_MS = 10 * 1000;
 const VIDEO_WAIT_ATTEMPTS = 30;
 const VIDEO_WAIT_INTERVAL_MS = 500;
 const PLAYBACK_RATE = 2;
