@@ -9,11 +9,14 @@ const PLAYBACK_RATE = 2;
 interface DisplayPanelItem {
   index: number;
   id: string;
+  kind: 'normal' | 'group-child';
   read: boolean;
   selected: boolean;
   title: string;
   href: string;
+  groupTitle: string;
   element: HTMLLIElement;
+  link: HTMLAnchorElement;
 }
 
 interface NextVideoItem {
@@ -22,19 +25,43 @@ interface NextVideoItem {
 }
 
 function getDisplayPanelReadStatus(doc: Document): DisplayPanelItem[] {
-  return [...doc.querySelectorAll<HTMLLIElement>('#displayPanel li')].map((li, index) => {
-    const icon = li.querySelector('.icon-node');
-    const link = li.querySelector('a');
+  const selectedLi = doc.querySelector<HTMLLIElement>('#displayPanel li.selected');
+  const playableItems = [...doc.querySelectorAll<HTMLLIElement>('#displayPanel li')].filter((li) => {
+    const hasChildList = Boolean(li.querySelector(':scope > ul'));
+    const link = li.querySelector<HTMLAnchorElement>(
+      ':scope > span a.cssAnchor1, :scope > span a[onclick*="launchActivity"]',
+    );
+
+    return Boolean(link && !hasChildList);
+  });
+
+  return playableItems.map((li, index) => {
+    const icon = li.querySelector(':scope > span > .icon-node');
+    const link = li.querySelector<HTMLAnchorElement>(
+      ':scope > span a.cssAnchor1, :scope > span a[onclick*="launchActivity"]',
+    );
     const titleEl = link?.querySelector('div');
+    const groupLi = li.parentElement?.closest<HTMLLIElement>('li.title');
+    const groupLink = groupLi?.querySelector<HTMLAnchorElement>(
+      ':scope > span a[onclick*="launchActivity"]',
+    );
+    const groupTitle = groupLink?.getAttribute('title')?.trim() ?? '';
+    const kind = groupLi ? 'group-child' : 'normal';
+    const rawTitle = titleEl?.textContent?.trim() || link?.getAttribute('title')?.trim() || '';
+    const title = rawTitle && rawTitle !== 'undefined' ? rawTitle : groupTitle || li.id;
+    const selectedInGroup = Boolean(selectedLi && groupLi && selectedLi === groupLi);
 
     return {
       index,
       id: li.id,
+      kind,
       read: icon ? icon.classList.contains('node-finish') : false,
-      selected: li.classList.contains('selected'),
-      title: titleEl?.textContent?.trim() ?? '',
+      selected: li.classList.contains('selected') || selectedInGroup,
+      title,
       href: link?.getAttribute('href') ?? '',
+      groupTitle,
       element: li,
+      link: link as HTMLAnchorElement,
     };
   });
 }
@@ -43,8 +70,10 @@ function summarizeItem(item: DisplayPanelItem) {
   return {
     index: item.index,
     id: item.id,
+    kind: item.kind,
     title: item.title,
     href: item.href,
+    groupTitle: item.groupTitle,
   };
 }
 
@@ -79,6 +108,8 @@ function getNextVideoItem(): NextVideoItem | null {
 
     console.log('[Paul.LTC] pathTree 狀態', {
       total: items.length,
+      normal: items.filter((item) => item.kind === 'normal').length,
+      groupChild: items.filter((item) => item.kind === 'group-child').length,
       unread: unreadItems.length,
       selected: selectedItem ? summarizeItem(selectedItem) : null,
       firstUnread: firstUnread ? summarizeItem(firstUnread) : null,
@@ -105,8 +136,7 @@ function getNextVideoItem(): NextVideoItem | null {
 }
 
 function openPathTreeItem(item: DisplayPanelItem) {
-  const link = item.element.querySelector<HTMLAnchorElement>('a');
-  const clickTarget = (link ?? item.element) as HTMLElement;
+  const clickTarget = item.link;
   const eventView = clickTarget.ownerDocument.defaultView ?? window;
 
   for (const eventName of ['mousedown', 'mouseup', 'click']) {
